@@ -1,0 +1,248 @@
+Farcaster
+Farcaster is a sufficiently decentralized social network whose core social graph is stored onchain. Privy enables your users to log in to your application using their Farcaster account. Privy uses a standard called Sign in with Farcaster (FIP-11) to issue a signature request to a user’s Farcaster account via the client a user has. Warpcast is currently supported.
+
+Your application can even request permissions from the user to become a signer for their Farcaster account, allowing your application to engage with the Farcaster social graph on their behalf.
+
+Interested in building a Farcaster frame? Check out our Farcaster frames recipe!
+
+React
+React Native
+Privy currently only supports Farcaster login in React via the Privy UIs. To enable Farcaster login, you need to configure the Privy SDK with the farcaster login method.
+
+
+Copy
+<PrivyProvider
+  appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID}
+  config={{
+    // This configures farcaster and other login methods for your app.
+    appearance: {
+        loginMethods: ['farcaster', ...otherLoginMethods]
+    },
+    ...otherConfig
+  }}
+>
+From there, you can prompt your users to authenticate via the login method:
+
+
+Copy
+import { usePrivy } from '@privy-io/react';
+...
+const { login } = usePrivy();
+login();
+OAuth
+
+--------------
+
+From Claude 
+
+Windsurf + Privy Integration Prompts for JuryNow
+I'd be happy to provide you with prompts to connect your JuryNow app to Privy using Windsurf. From your description, JuryNow is an app that gives users access to diverse global decision-making from 12 real people who vote on various dilemmas or questions.
+Here are integration prompts focused on different aspects:
+1. Initial Privy Authentication Setup
+javascript// Add Privy authentication to your Windsurf app
+import { PrivyProvider } from '@privy-io/react-auth';
+import { usePrivy } from '@privy-io/react-auth';
+
+function MyApp({ Component, pageProps }) {
+  return (
+    <PrivyProvider
+      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID}
+      config={{
+        loginMethods: ['email', 'wallet', 'google', 'apple'],
+        appearance: {
+          theme: 'light',
+          accentColor: '#007bff', // Match to JuryNow's brand color
+          logo: 'https://yourjurynowapp.com/logo.png',
+        },
+        embeddedWallets: {
+          createOnLogin: true,
+        },
+      }}
+    >
+      <Component {...pageProps} />
+    </PrivyProvider>
+  );
+}
+2. User Authentication Flow
+javascript// Implement in your login component
+import { usePrivy } from '@privy-io/react-auth';
+
+function LoginComponent() {
+  const { login, authenticated, user } = usePrivy();
+  
+  return (
+    <div>
+      {!authenticated ? (
+        <button 
+          onClick={login}
+          className="login-button"
+        >
+          Connect to JuryNow
+        </button>
+      ) : (
+        <div>
+          <p>Welcome to JuryNow, {user.email || user.wallet?.address}</p>
+          {/* Redirect to main interface */}
+        </div>
+      )}
+    </div>
+  );
+}
+3. Protected Routes Implementation
+javascript// Create a wrapper for protected pages
+import { usePrivy } from '@privy-io/react-auth';
+import { useRouter } from 'next/router';
+import { useEffect } from 'react';
+
+export function withAuth(Component) {
+  return function AuthenticatedComponent(props) {
+    const { authenticated, ready } = usePrivy();
+    const router = useRouter();
+
+    useEffect(() => {
+      if (ready && !authenticated) {
+        router.push('/login');
+      }
+    }, [ready, authenticated, router]);
+
+    if (!ready || !authenticated) return <LoadingSpinner />; 
+    
+    return <Component {...props} />;
+  };
+}
+
+// Use it like this:
+const ProtectedJuryPage = withAuth(JuryPage);
+4. User Profile Management
+javascript// User profile management with Privy
+function ProfileManagement() {
+  const { user, logout, linkEmail, linkWallet } = usePrivy();
+  
+  return (
+    <div className="profile-container">
+      <h2>Your JuryNow Profile</h2>
+      
+      <div className="connected-accounts">
+        {user.email && <p>Email: {user.email}</p>}
+        {user.wallet && <p>Wallet: {user.wallet.address.substring(0, 6)}...{user.wallet.address.substring(38)}</p>}
+      </div>
+      
+      <div className="profile-actions">
+        <button onClick={() => linkEmail()}>Link Email</button>
+        <button onClick={() => linkWallet()}>Link Wallet</button>
+        <button onClick={logout}>Logout</button>
+      </div>
+    </div>
+  );
+}
+5. Poll Creation with User Authentication
+javascript// Create a new poll with authenticated user data
+function CreatePoll() {
+  const { user, authenticated } = usePrivy();
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [options, setOptions] = useState(['', '']);
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!authenticated) {
+      alert('Please login to create a poll');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/polls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: pollQuestion,
+          options: options,
+          creator: user.id,
+          creatorAddress: user.wallet?.address
+        })
+      });
+      
+      if (response.ok) {
+        // Handle successful poll creation
+      }
+    } catch (error) {
+      console.error('Error creating poll:', error);
+    }
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form inputs */}
+    </form>
+  );
+}
+6. Connecting Wallet for Premium Features
+javascript// For premium features that might require wallet connection
+function PremiumFeatures() {
+  const { authenticated, user, connectWallet } = usePrivy();
+  const [isPremium, setIsPremium] = useState(false);
+  
+  useEffect(() => {
+    // Check if user has premium access
+    if (authenticated && user.wallet) {
+      checkPremiumStatus(user.wallet.address).then(status => {
+        setIsPremium(status);
+      });
+    }
+  }, [authenticated, user]);
+  
+  const handlePremiumUpgrade = async () => {
+    if (!user.wallet) {
+      await connectWallet();
+    }
+    // Process premium upgrade
+  };
+  
+  return (
+    <div className="premium-container">
+      {isPremium ? (
+        <PremiumFeaturesList />
+      ) : (
+        <div>
+          <h3>Upgrade to JuryNow Premium</h3>
+          <p>Get unlimited polls and special features!</p>
+          <button onClick={handlePremiumUpgrade}>
+            Upgrade Now
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+7. JWT Authentication for API Calls
+javascript// Secure API calls with Privy JWT
+import { usePrivy } from '@privy-io/react-auth';
+
+function SecureApiComponent() {
+  const { getAccessToken } = usePrivy();
+  
+  const fetchJuryResults = async () => {
+    try {
+      const token = await getAccessToken();
+      
+      const response = await fetch('/api/jury-results', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      // Process jury results
+    } catch (error) {
+      console.error('Error fetching results:', error);
+    }
+  };
+  
+  return (
+    <button onClick={fetchJuryResults}>
+      Fetch My Poll Results
+    </button>
+  );
+}
